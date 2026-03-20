@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_avatar.dart';
+import '../../providers/auth_provider.dart';
 import 'teacher_shell.dart';
 
 class TeacherStudentsScreen extends ConsumerStatefulWidget {
@@ -23,16 +24,38 @@ class _State extends ConsumerState<TeacherStudentsScreen> {
   void initState() { super.initState(); _load(); }
 
   Future<void> _load() async {
-    final results = await Future.wait([
-      supabase.from('students').select('uuid, roll_number, profiles(name, photo_url, is_active), classes(name)').order('roll_number'),
-      supabase.from('classes').select('id, name'),
-    ]);
-    setState(() {
-      _students = List<Map<String, dynamic>>.from(results[0] as List);
-      _classes  = List<Map<String, dynamic>>.from(results[1] as List);
-      _loading  = false;
-    });
-    _applyFilter();
+    try {
+      final tData = await ref.read(teacherDataProvider.future);
+      List<String> myClassIds = [];
+      if (tData != null) {
+        final tcs = tData['teacher_classes'] as List? ?? [];
+        for (var tc in tcs) {
+          final cId = tc['class_id'];
+          if (cId != null) myClassIds.add(cId.toString());
+        }
+      }
+
+      if (myClassIds.isEmpty) {
+        if (mounted) setState(() { _loading = false; _students = []; _classes = []; });
+        return;
+      }
+
+      final List<dynamic> results = await Future.wait([
+        supabase.from('students').select('uuid, roll_number, profiles:profile_id(name, photo_url, is_active), classes(name)').inFilter('class_id', myClassIds).order('roll_number'),
+        supabase.from('classes').select('id, name').inFilter('id', myClassIds),
+      ]);
+      if (mounted) {
+        setState(() {
+          _students = List<Map<String, dynamic>>.from(results[0] as List);
+          _classes  = List<Map<String, dynamic>>.from(results[1] as List);
+          _loading  = false;
+        });
+        _applyFilter();
+      }
+    } catch (e) {
+      debugPrint('Error loading students: $e');
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _applyFilter() {

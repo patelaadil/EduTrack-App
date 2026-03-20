@@ -139,7 +139,7 @@ class TeacherDrawer extends ConsumerWidget {
                 _DrawerItem(icon: Icons.notifications_rounded,label: 'Notifications',   route: '/teacher/notifications', badge: 3),
                 _DrawerItem(icon: Icons.person_rounded,      label: 'Profile',          route: '/teacher/profile'),
                 const Divider(height: 24, indent: 16, endIndent: 16),
-                _DrawerItem(icon: Icons.image_rounded,           label: 'Slider Management', route: '/teacher/home'),
+                _DrawerItem(icon: Icons.image_rounded,           label: 'Slider Management', route: '/teacher/sliders'),
                 _DrawerItem(icon: Icons.qr_code_scanner_rounded, label: 'Take Attendance',   route: '/teacher/scanner', tag: 'SCAN', tagColor: AppColors.success, isExternal: true),
                 _DrawerItem(icon: Icons.info_outline_rounded,    label: 'App Info',          route: '/teacher/home'),
                 _DrawerItem(icon: Icons.settings_rounded,    label: 'Settings',         route: '/teacher/home'),

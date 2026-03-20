@@ -3,20 +3,59 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 import '../../providers/auth_provider.dart';
+import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_avatar.dart';
 
-class StudentProfileScreen extends ConsumerWidget {
+class StudentProfileScreen extends ConsumerStatefulWidget {
   const StudentProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Both providers are cached — no Supabase call on re-navigation
+  ConsumerState<StudentProfileScreen> createState() => _State();
+}
+
+class _State extends ConsumerState<StudentProfileScreen> {
+  bool _uploading = false;
+
+  Future<void> _uploadAvatar() async {
+    final picker = ImagePicker();
+    final xfile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    if (xfile == null) return;
+
+    setState(() => _uploading = true);
+    try {
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
+
+      final bytes = await xfile.readAsBytes();
+      final ext = xfile.name.split('.').last;
+      final fileName = '${user.id}_${const Uuid().v4()}.$ext';
+
+      // Upload to avatars bucket
+      await supabase.storage.from('avatars').uploadBinary(fileName, bytes);
+      final url = supabase.storage.from('avatars').getPublicUrl(fileName);
+
+      // Update profile
+      await supabase.from('profiles').update({'photo_url': url}).eq('id', user.id);
+      
+      // Refresh provider
+      ref.invalidate(userProfileProvider);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar updated!')));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update avatar: $e')));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
     final studentAsync = ref.watch(studentDataProvider);
 
-    // Show loading only on the very first load
     final isLoading = profileAsync.isLoading || studentAsync.isLoading;
 
     return Scaffold(
@@ -39,41 +78,38 @@ class StudentProfileScreen extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Stack(
-                        children: [
-                          Column(children: [
-                            AppAvatar(
-                              name: profile?.name ?? '?',
-                              photoUrl: profile?.photoUrl,
-                              size: 80,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              profile?.name ?? '',
-                              style: GoogleFonts.publicSans(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textDark,
+                      child: Column(children: [
+                        GestureDetector(
+                          onTap: _uploading ? null : _uploadAvatar,
+                          child: Stack(
+                            alignment: Alignment.bottomRight,
+                            children: [
+                              AppAvatar(
+                                name: profile?.name ?? '?',
+                                photoUrl: profile?.photoUrl,
+                                size: 84,
                               ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${student?['classes']?['name'] ?? ''} • Roll No. ${student?['roll_number'] ?? ''}',
-                              style: GoogleFonts.publicSans(
-                                fontSize: 13,
-                                color: AppColors.textGray,
-                              ),
-                            ),
-                          ]),
-                          Positioned(
-                            top: 0, right: 0,
-                            child: IconButton(
-                              icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.textGray),
-                              onPressed: () {},
-                            ),
-                          ),
-                        ],
-                      ),
+                              if (_uploading)
+                                const Positioned.fill(child: CircularProgressIndicator(color: AppColors.primary)),
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
+                                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                              )
+                            ]
+                          )
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          profile?.name ?? '',
+                          style: GoogleFonts.publicSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${student?['classes']?['name'] ?? ''} • Roll No. ${student?['roll_number'] ?? ''}',
+                          style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textGray),
+                        ),
+                      ]),
                     ),
 
                     const SizedBox(height: 16),
@@ -109,8 +145,7 @@ class StudentProfileScreen extends ConsumerWidget {
                       child: Column(children: [
                         Align(
                           alignment: Alignment.centerLeft,
-                          child: Text('My QR Code',
-                            style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700)),
+                          child: Text('My QR Code', style: GoogleFonts.publicSans(fontSize: 16, fontWeight: FontWeight.w700)),
                         ),
                         const SizedBox(height: 16),
                         if (student?['uuid'] != null)
@@ -127,20 +162,7 @@ class StudentProfileScreen extends ConsumerWidget {
                             ),
                           ),
                         const SizedBox(height: 12),
-                        Text('Show this to teacher for attendance',
-                          style: GoogleFonts.publicSans(fontSize: 12, color: AppColors.textGray)),
-                        const SizedBox(height: 16),
-                        OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.download_outlined, size: 18),
-                          label: Text('Save QR', style: GoogleFonts.publicSans(fontWeight: FontWeight.w600)),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                            side: const BorderSide(color: AppColors.primary),
-                            minimumSize: const Size(double.infinity, 46),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
+                        Text('Show this to teacher for attendance', style: GoogleFonts.publicSans(fontSize: 12, color: AppColors.textGray)),
                       ]),
                     ),
 
@@ -155,18 +177,8 @@ class StudentProfileScreen extends ConsumerWidget {
                       ),
                       child: Column(children: [
                         ListTile(
-                          leading: const Icon(Icons.lock_outline, color: AppColors.textDark, size: 20),
-                          title: Text('Change Password',
-                            style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w500)),
-                          trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textLight),
-                          onTap: () {},
-                        ),
-                        const Divider(height: 0),
-                        ListTile(
                           leading: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                          title: Text('Logout',
-                            style: GoogleFonts.publicSans(
-                              fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
+                          title: Text('Logout', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
                           onTap: () async {
                             await ref.read(authProvider).signOut();
                             if (context.mounted) context.go('/login');
@@ -194,20 +206,14 @@ class _InfoTile extends StatelessWidget {
     child: Row(children: [
       Container(
         width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(9),
-        ),
+        decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
         child: Icon(icon, color: iconColor, size: 18),
       ),
       const SizedBox(width: 12),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: GoogleFonts.publicSans(
-          fontSize: 10, fontWeight: FontWeight.w700,
-          color: AppColors.textGray, letterSpacing: 0.8)),
+        Text(label, style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textGray, letterSpacing: 0.8)),
         const SizedBox(height: 2),
-        Text(value, style: GoogleFonts.publicSans(
-          fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textDark)),
+        Text(value, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textDark)),
       ]),
     ]),
   );

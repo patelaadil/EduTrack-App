@@ -5,6 +5,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import '../../providers/auth_provider.dart';
+import 'package:image_picker/image_picker.dart';
 
 // ── Two phases: setup form → live camera ─────────────────────
 enum _Phase { setup, scanning }
@@ -93,14 +94,14 @@ class _TeacherScannerScreenState extends ConsumerState<TeacherScannerScreen> {
     setState(() { _starting = true; _setupError = ''; });
 
     try {
-      final profile = ref.read(userProfileProvider).value;
-      if (profile == null) throw Exception('Not logged in');
+      final user = supabase.auth.currentUser;
+      if (user == null) throw Exception('Not logged in');
 
       // Get teacher id
       final teacherRow = await supabase
           .from('teachers')
           .select('id')
-          .eq('profile_id', profile.id)
+          .eq('profile_id', user.id)
           .maybeSingle();
 
       // Get active academic year
@@ -421,6 +422,24 @@ class _TeacherScannerScreenState extends ConsumerState<TeacherScannerScreen> {
               style: GoogleFonts.publicSans(color: Colors.white54, fontSize: 11)),
         ]),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.image_rounded),
+            tooltip: 'Scan from Gallery',
+            onPressed: () async {
+              try {
+                final picker = ImagePicker();
+                final xfile = await picker.pickImage(source: ImageSource.gallery);
+                if (xfile != null) {
+                  final success = await _camera!.analyzeImage(xfile.path);
+                  if (success == false && mounted) {
+                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No QR code found in image')));
+                  }
+                }
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error reading image: $e')));
+              }
+            },
+          ),
           TextButton(
             onPressed: () => _showEndDialog(context),
             child: Text('END SESSION',

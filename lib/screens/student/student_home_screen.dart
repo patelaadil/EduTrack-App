@@ -6,6 +6,7 @@ import '../../providers/auth_provider.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_avatar.dart';
+import 'student_shell.dart';
 
 class StudentHomeScreen extends ConsumerStatefulWidget {
   const StudentHomeScreen({super.key});
@@ -67,10 +68,15 @@ class _State extends ConsumerState<StudentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = ref.watch(userProfileProvider).value;
+    final student = ref.watch(studentDataProvider).value;
 
     return Scaffold(
+      drawer: const StudentDrawer(),
       appBar: AppBar(
-        leading: IconButton(icon: const Icon(Icons.menu_rounded), onPressed: () {}),
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
         title: const Text('EduTrack'),
         actions: [
           Stack(children: [
@@ -104,10 +110,10 @@ class _State extends ConsumerState<StudentHomeScreen> {
                         Expanded(child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('${_greeting()}, ${profile?.name.split(' ').first ?? 'Student'}! 👋',
+                            Text('${_greeting()}, ${profile?.name?.split(' ').first ?? 'Student'}! 👋',
                               style: GoogleFonts.publicSans(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
                             const SizedBox(height: 5),
-                            Text('Class 10-A | Roll 42', style: GoogleFonts.publicSans(
+                            Text('${student?['classes']?['name'] ?? '--'} | Roll ${student?['roll_number'] ?? '--'}', style: GoogleFonts.publicSans(
                               color: Colors.white.withOpacity(0.78), fontSize: 13)),
                           ],
                         )),

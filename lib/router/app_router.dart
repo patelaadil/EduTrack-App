@@ -14,6 +14,7 @@ import '../screens/teacher/teacher_marks_screen.dart';
 import '../screens/teacher/teacher_videos_screen.dart';
 import '../screens/teacher/teacher_notifications_screen.dart';
 import '../screens/teacher/teacher_profile_screen.dart';
+import '../screens/teacher/teacher_sliders_screen.dart';
 import '../screens/student/student_shell.dart';
 import '../screens/student/student_home_screen.dart';
 import '../screens/student/student_attendance_screen.dart';
@@ -52,6 +53,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher/videos',         builder: (_, __) => const TeacherVideosScreen()),
           GoRoute(path: '/teacher/notifications',  builder: (_, __) => const TeacherNotificationsScreen()),
           GoRoute(path: '/teacher/profile',        builder: (_, __) => const TeacherProfileScreen()),
+          GoRoute(path: '/teacher/sliders',        builder: (_, __) => const TeacherSlidersScreen()),
         ],
       ),
 
