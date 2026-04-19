@@ -18,6 +18,7 @@ import '../screens/teacher/teacher_sliders_screen.dart';
 import '../screens/student/student_shell.dart';
 import '../screens/student/student_home_screen.dart';
 import '../screens/student/student_attendance_screen.dart';
+import '../screens/student/student_holidays_screen.dart';
 import '../screens/student/student_marks_screen.dart';
 import '../screens/student/student_videos_screen.dart';
 import '../screens/student/student_notifications_screen.dart';
@@ -26,14 +27,37 @@ import '../screens/student/student_profile_screen.dart';
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final user = supabase.auth.currentUser;
-      final isLoggedIn = user != null;
-      final onAuth = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/splash';
+      final loc = state.matchedLocation;
+      final onAuth = loc == '/login' || loc == '/splash';
 
-      if (!isLoggedIn && !onAuth) return '/login';
-      return null;
+      if (user == null) return onAuth ? null : '/login';
+      if (loc == '/splash') return null;
+
+      try {
+        final profile = await supabase
+            .from('profiles')
+            .select('role, is_active')
+            .eq('id', user.id)
+            .single();
+
+        if (profile['is_active'] == false) return '/login';
+
+        final role = profile['role'] as String?;
+        if (role == null || role == 'admin') return '/login';
+
+        final home = role == 'teacher' ? '/teacher/home' : '/student/home';
+        final isTeacherRoute = loc.startsWith('/teacher/');
+        final isStudentRoute = loc.startsWith('/student/');
+
+        if (onAuth) return home;
+        if (isTeacherRoute && role != 'teacher') return home;
+        if (isStudentRoute && role != 'student') return home;
+        return null;
+      } catch (_) {
+        return '/login';
+      }
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
@@ -63,6 +87,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(path: '/student/home',          builder: (_, __) => const StudentHomeScreen()),
           GoRoute(path: '/student/attendance',    builder: (_, __) => const StudentAttendanceScreen()),
+          GoRoute(path: '/student/holidays',      builder: (_, __) => const StudentHolidaysScreen()),
           GoRoute(path: '/student/marks',         builder: (_, __) => const StudentMarksScreen()),
           GoRoute(path: '/student/videos',        builder: (_, __) => const StudentVideosScreen()),
           GoRoute(path: '/student/notifications', builder: (_, __) => const StudentNotificationsScreen()),

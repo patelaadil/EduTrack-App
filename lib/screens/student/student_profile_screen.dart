@@ -1,4 +1,6 @@
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,6 +11,7 @@ import '../../providers/auth_provider.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/app_avatar.dart';
+import '../../utils/qr_export.dart';
 
 class StudentProfileScreen extends ConsumerStatefulWidget {
   const StudentProfileScreen({super.key});
@@ -19,6 +22,7 @@ class StudentProfileScreen extends ConsumerStatefulWidget {
 
 class _State extends ConsumerState<StudentProfileScreen> {
   bool _uploading = false;
+  final GlobalKey _qrKey = GlobalKey();
 
   Future<void> _uploadAvatar() async {
     final picker = ImagePicker();
@@ -48,6 +52,36 @@ class _State extends ConsumerState<StudentProfileScreen> {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update avatar: $e')));
     } finally {
       if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _exportQr(String rollNumber) async {
+    try {
+      final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+      final pngBytes = byteData.buffer.asUint8List();
+      final savedTo = await saveQrCodeImage(
+        pngBytes,
+        'QR_${rollNumber.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_')}.png',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('QR Code saved for $rollNumber${savedTo == null ? '' : ' ($savedTo)'}'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Export failed: $e')),
+        );
+      }
     }
   }
 
@@ -127,8 +161,6 @@ class _State extends ConsumerState<StudentProfileScreen> {
                         _InfoTile(icon: Icons.phone_outlined,        iconColor: AppColors.success,       label: 'CONTACT',       value: profile?.phone ?? '—'),
                         const Divider(height: 0, indent: 60),
                         _InfoTile(icon: Icons.mail_outlined,         iconColor: const Color(0xFF8B5CF6), label: 'EMAIL',          value: profile?.email ?? '—'),
-                        const Divider(height: 0, indent: 60),
-                        _InfoTile(icon: Icons.location_on_outlined,  iconColor: AppColors.error,         label: 'ADDRESS',        value: '—'),
                       ]),
                     ),
 
@@ -149,20 +181,32 @@ class _State extends ConsumerState<StudentProfileScreen> {
                         ),
                         const SizedBox(height: 16),
                         if (student?['uuid'] != null)
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: AppColors.border, width: 1.5),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: QrImageView(
-                              data: student!['uuid'],
-                              version: QrVersions.auto,
-                              size: 180,
+                          RepaintBoundary(
+                            key: _qrKey,
+                            child: Container(
+                              padding: const EdgeInsets.all(16),
+                              color: Colors.white,
+                              child: QrImageView(
+                                data: student!['uuid'],
+                                version: QrVersions.auto,
+                                size: 180,
+                              ),
                             ),
                           ),
                         const SizedBox(height: 12),
                         Text('Show this to teacher for attendance', style: GoogleFonts.publicSans(fontSize: 12, color: AppColors.textGray)),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => _exportQr(student?['roll_number'] ?? 'QR'),
+                          icon: const Icon(Icons.download_rounded, size: 18),
+                          label: Text('Export QR Code', style: GoogleFonts.publicSans(fontWeight: FontWeight.w600)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          ),
+                        ),
                       ]),
                     ),
 
@@ -180,8 +224,21 @@ class _State extends ConsumerState<StudentProfileScreen> {
                           leading: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
                           title: Text('Logout', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
                           onTap: () async {
-                            await ref.read(authProvider).signOut();
-                            if (context.mounted) context.go('/login');
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Logout'),
+                                content: const Text('Are you sure you want to logout?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout', style: TextStyle(color: AppColors.error))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(authProvider).signOut();
+                              if (context.mounted) context.go('/login');
+                            }
                           },
                         ),
                       ]),
@@ -206,7 +263,7 @@ class _InfoTile extends StatelessWidget {
     child: Row(children: [
       Container(
         width: 36, height: 36,
-        decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
+        decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(9)),
         child: Icon(icon, color: iconColor, size: 18),
       ),
       const SizedBox(width: 12),

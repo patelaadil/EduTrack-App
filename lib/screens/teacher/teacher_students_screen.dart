@@ -206,11 +206,6 @@ class _State extends ConsumerState<TeacherStudentsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.person_add_rounded, color: Colors.white),
-      ),
     );
   }
 }

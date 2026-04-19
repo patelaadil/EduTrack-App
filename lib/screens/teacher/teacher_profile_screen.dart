@@ -154,8 +154,21 @@ class _State extends ConsumerState<TeacherProfileScreen> {
                           leading: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
                           title: Text('Logout', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
                           onTap: () async {
-                            await ref.read(authProvider).signOut();
-                            if (context.mounted) context.go('/login');
+                            final confirm = await showDialog<bool>(
+                              context: context,
+                              builder: (ctx) => AlertDialog(
+                                title: const Text('Logout'),
+                                content: const Text('Are you sure you want to logout?'),
+                                actions: [
+                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout', style: TextStyle(color: AppColors.error))),
+                                ],
+                              ),
+                            );
+                            if (confirm == true) {
+                              await ref.read(authProvider).signOut();
+                              if (context.mounted) context.go('/login');
+                            }
                           },
                         ),
                       ]),

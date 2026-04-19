@@ -105,6 +105,7 @@ class StudentDrawer extends StatelessWidget {
               children: [
                 _DrawerItem(icon: Icons.home_rounded,        label: 'Home',             route: '/student/home'),
                 _DrawerItem(icon: Icons.bar_chart_rounded,   label: 'Attendance',       route: '/student/attendance'),
+                _DrawerItem(icon: Icons.event_rounded,       label: 'Holidays',         route: '/student/holidays'),
                 _DrawerItem(icon: Icons.menu_book_rounded,   label: 'Academics',        route: '/student/marks'),
                 _DrawerItem(icon: Icons.play_circle_fill_rounded, label: 'Video Lessons',  route: '/student/videos'),
                 _DrawerItem(icon: Icons.notifications_rounded,label: 'Notifications',   route: '/student/notifications'),

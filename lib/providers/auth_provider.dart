@@ -39,7 +39,7 @@ final studentDataProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
       .eq('profile_id', user.id)
       .maybeSingle();
 
-  return data as Map<String, dynamic>?;
+  return data;
 });
 
 // ── Teacher data (id + assigned classes) — CACHED ────────────
@@ -66,7 +66,7 @@ final teacherDataProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
       .eq('profile_id', user.id)
       .maybeSingle();
 
-  return data as Map<String, dynamic>?;
+  return data;
 });
 
 // ── Auth actions ─────────────────────────────────────────────

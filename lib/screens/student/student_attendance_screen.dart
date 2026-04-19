@@ -16,6 +16,7 @@ class StudentAttendanceScreen extends ConsumerStatefulWidget {
 class _State extends ConsumerState<StudentAttendanceScreen> {
   DateTime _focusedDay = DateTime.now();
   List<Map<String, dynamic>> _records = [];
+  List<Map<String, dynamic>> _holidayRanges = [];
   bool _loading = true;
 
   @override
@@ -28,19 +29,62 @@ class _State extends ConsumerState<StudentAttendanceScreen> {
     final studentData = await ref.read(studentDataProvider.future);
     if (!mounted || studentData == null) return;
     try {
-      final res = await supabase
-          .from('attendance_records')
-          .select('id, status, scanned_at, attendance_sessions(subject, session_date)')
-          .eq('student_uuid', studentData['uuid']);
+      final results = await Future.wait([
+        supabase
+            .from('attendance_records')
+            .select('id, status, scanned_at, attendance_sessions(subject, session_date)')
+            .eq('student_uuid', studentData['uuid']),
+        supabase.from('holidays').select('date, end_date, reason').order('date'),
+      ]);
       if (mounted) {
+        final holidays = (results[1] as List?)?.cast<Map<String, dynamic>>() ?? [];
         setState(() {
-          _records = List<Map<String, dynamic>>.from(res);
+          _records = List<Map<String, dynamic>>.from(results[0] as List);
+          _holidayRanges = holidays;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  bool _isSundayOrHoliday(DateTime day) {
+    if (day.weekday == DateTime.sunday) return true;
+    final dateStr = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    return _holidayRanges.any((h) {
+      final start = h['date'] as String?;
+      final end = (h['end_date'] as String?) ?? start;
+      if (start == null || end == null) return false;
+      return dateStr.compareTo(start) >= 0 && dateStr.compareTo(end) <= 0;
+    });
+  }
+
+  /// Returns attendance status for a day:
+  /// 'present', 'late', 'absent', 'holiday', or null (future/no data yet)
+  String? _getDayStatus(DateTime day) {
+    if (_isSundayOrHoliday(day)) return 'holiday';
+
+    final dateStr = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+    final dayRecords = _records.where((r) {
+      final sd = r['attendance_sessions']?['session_date'];
+      return sd != null && sd.startsWith(dateStr);
+    }).toList();
+
+    if (dayRecords.isNotEmpty) {
+      if (dayRecords.any((r) => r['status'] == 'absent')) return 'absent';
+      if (dayRecords.any((r) => r['status'] == 'late')) return 'late';
+      return 'present';
+    }
+
+    // Auto-absent: if the day is past and it's after 6 PM
+    final now = DateTime.now();
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final checkDate = DateTime(day.year, day.month, day.day);
+    if (checkDate.isBefore(todayDate)) return 'absent';
+    if (checkDate.isAtSameMomentAs(todayDate) && now.hour >= 18) return 'absent';
+
+    return null; // Future date
   }
 
   List<Map<String, dynamic>> _getEventsForDay(DateTime day) {
@@ -124,35 +168,82 @@ class _State extends ConsumerState<StudentAttendanceScreen> {
                       ),
                       calendarBuilders: CalendarBuilders(
                         defaultBuilder: (context, day, focusedDay) {
-                          final events = _getEventsForDay(day);
-                          if (events.isEmpty) return null;
-                          final hasAbsent = events.any((e) => e['status'] == 'absent');
-                          final hasLate = events.any((e) => e['status'] == 'late');
-                          final color = hasAbsent ? AppColors.error : (hasLate ? AppColors.warning : AppColors.success);
-                          
-                          return Container(
-                            margin: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [color.withOpacity(0.15), color.withOpacity(0.3)],
-                                begin: Alignment.topLeft, end: Alignment.bottomRight
-                              )
-                            ),
-                            alignment: Alignment.center,
-                            child: Text('${day.day}', style: GoogleFonts.publicSans(fontWeight: FontWeight.w700, color: color)),
+                          final status = _getDayStatus(day);
+                          if (status == null) return null; // Future date, use default rendering
+
+                          Color dotColor;
+                          Color textColor;
+                          Color bgColor;
+
+                          switch (status) {
+                            case 'present':
+                            case 'late':
+                              dotColor = AppColors.success;
+                              textColor = AppColors.success;
+                              bgColor = AppColors.success.withOpacity(0.12);
+                              break;
+                            case 'absent':
+                              dotColor = AppColors.error;
+                              textColor = AppColors.error;
+                              bgColor = AppColors.error.withOpacity(0.08);
+                              break;
+                            case 'holiday':
+                              dotColor = AppColors.error;
+                              textColor = AppColors.error;
+                              bgColor = AppColors.error.withOpacity(0.08);
+                              break;
+                            default:
+                              return null;
+                          }
+
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: bgColor,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('${day.day}', style: GoogleFonts.publicSans(
+                                  fontWeight: FontWeight.w700, fontSize: 13, color: textColor)),
+                              ),
+                              const SizedBox(height: 2),
+                              Container(
+                                width: 6, height: 6,
+                                decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                              ),
+                            ],
                           );
                         },
                         todayBuilder: (context, day, focusedDay) {
-                          return Container(
-                            margin: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: AppColors.primary,
-                              boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
-                            ),
-                            alignment: Alignment.center,
-                            child: Text('${day.day}', style: GoogleFonts.publicSans(fontWeight: FontWeight.w800, color: Colors.white)),
+                          final status = _getDayStatus(day);
+                          final dotColor = status == 'present' || status == 'late'
+                              ? AppColors.success
+                              : status == 'absent' ? AppColors.error
+                              : status == 'holiday' ? AppColors.error : Colors.transparent;
+
+                          return Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 32, height: 32,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: AppColors.primary,
+                                  boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))]
+                                ),
+                                alignment: Alignment.center,
+                                child: Text('${day.day}', style: GoogleFonts.publicSans(fontWeight: FontWeight.w800, color: Colors.white)),
+                              ),
+                              const SizedBox(height: 2),
+                              if (dotColor != Colors.transparent)
+                                Container(
+                                  width: 6, height: 6,
+                                  decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                                ),
+                            ],
                           );
                         }
                       ),

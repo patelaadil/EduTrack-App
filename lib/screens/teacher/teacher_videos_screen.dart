@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../providers/auth_provider.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
@@ -165,7 +166,14 @@ class _State extends ConsumerState<TeacherVideosScreen> {
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (_, i) {
                     final v = _videos[i];
-                    return Container(
+                    return GestureDetector(
+                      onTap: () {
+                        final url = v['video_url'] as String?;
+                        if (url != null && url.isNotEmpty) {
+                          launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      child: Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -197,6 +205,7 @@ class _State extends ConsumerState<TeacherVideosScreen> {
                           )
                         ],
                       ),
+                    ),
                     );
                   },
                 ),

@@ -212,6 +212,8 @@ class _State extends ConsumerState<StudentHomeScreen> {
                   Row(children: [
                     Expanded(child: _QuickLink(icon: Icons.movie_rounded, label: 'Videos', onTap: () => context.go('/student/videos'))),
                     const SizedBox(width: 12),
+                    Expanded(child: _QuickLink(icon: Icons.event_rounded, label: 'Holidays', onTap: () => context.go('/student/holidays'))),
+                    const SizedBox(width: 12),
                     Expanded(child: _QuickLink(icon: Icons.notifications_rounded, label: 'Notifications', onTap: () => context.go('/student/notifications'))),
                   ]),
 
