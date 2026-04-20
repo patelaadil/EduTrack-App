@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
+import 'student_shell.dart';
 
 class StudentNotificationsScreen extends ConsumerStatefulWidget {
   const StudentNotificationsScreen({super.key});
@@ -22,7 +23,14 @@ class _State extends ConsumerState<StudentNotificationsScreen> {
   }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Notifications')),
+    appBar: AppBar(
+      leading: Builder(builder: (ctx) => IconButton(
+        icon: const Icon(Icons.menu_rounded),
+        onPressed: () => Scaffold.of(ctx).openDrawer(),
+      )),
+      title: const Text('Notifications'),
+    ),
+    drawer: const StudentDrawer(),
     body: _loading ? const Center(child: CircularProgressIndicator())
       : _notifs.isEmpty ? Center(child: Text('No notifications', style: TextStyle(color: AppColors.textGray)))
       : ListView.separated(

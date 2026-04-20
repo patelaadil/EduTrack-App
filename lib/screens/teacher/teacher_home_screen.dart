@@ -27,12 +27,27 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
     try {
       final today = DateTime.now().toIso8601String().split('T')[0];
 
-      // Student count + today's attendance
-      final studentList = await supabase.from('students').select('uuid') as List;
-      final sessions    = await supabase
-          .from('attendance_sessions')
-          .select('attendance_records(status)')
-          .eq('session_date', today) as List;
+      final teacherData = await ref.read(teacherDataProvider.future);
+      final tcs = (teacherData?['teacher_classes'] as List?) ?? [];
+      final classIds = tcs
+          .map((tc) => tc['classes']?['id'])
+          .whereType<String>()
+          .toList();
+
+      final studentList = classIds.isEmpty
+          ? <dynamic>[]
+          : await supabase
+              .from('students')
+              .select('uuid')
+              .inFilter('class_id', classIds) as List;
+
+      final sessions = classIds.isEmpty
+          ? <dynamic>[]
+          : await supabase
+              .from('attendance_sessions')
+              .select('attendance_records(status)')
+              .eq('session_date', today)
+              .inFilter('class_id', classIds) as List;
 
       int present = 0, total = 0;
       for (final s in sessions) {
@@ -41,10 +56,6 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
           if (r['status'] == 'present' || r['status'] == 'late') present++;
         }
       }
-
-      // Assigned classes from cached provider
-      final teacherData = await ref.read(teacherDataProvider.future);
-      final tcs = (teacherData?['teacher_classes'] as List?) ?? [];
 
       if (mounted) setState(() {
         _studentCount  = studentList.length;
@@ -71,13 +82,10 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 20)),
         centerTitle: false,
         actions: [
-          Stack(children: [
-            IconButton(icon: const Icon(Icons.notifications_outlined, size: 24), onPressed: () => context.go('/teacher/notifications')),
-            Positioned(top: 10, right: 10, child: Container(
-              width: 8, height: 8,
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-            )),
-          ]),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined, size: 24),
+            onPressed: () => context.go('/teacher/notifications'),
+          ),
         ],
       ),
       drawer: const TeacherDrawer(),
@@ -163,6 +171,10 @@ class _TeacherHomeScreenState extends ConsumerState<TeacherHomeScreen> {
             _OutlineBtn(
                 icon: Icons.format_list_numbered_rounded, label: 'Add Student Marks',
                 onTap: () => context.go('/teacher/marks')),
+            const SizedBox(height: 10),
+            _OutlineBtn(
+                icon: Icons.event_rounded, label: 'Holidays',
+                onTap: () => context.go('/teacher/holidays')),
 
             const SizedBox(height: 24),
 

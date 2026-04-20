@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
+import 'student_shell.dart';
 
 class StudentVideosScreen extends ConsumerStatefulWidget {
   const StudentVideosScreen({super.key});
@@ -21,7 +22,14 @@ class _State extends ConsumerState<StudentVideosScreen> {
   }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Class Videos')),
+    appBar: AppBar(
+      leading: Builder(builder: (ctx) => IconButton(
+        icon: const Icon(Icons.menu_rounded),
+        onPressed: () => Scaffold.of(ctx).openDrawer(),
+      )),
+      title: const Text('Class Videos'),
+    ),
+    drawer: const StudentDrawer(),
     body: _loading ? const Center(child: CircularProgressIndicator())
       : _videos.isEmpty ? Center(child: Text('No videos yet', style: TextStyle(color: AppColors.textGray)))
       : ListView.separated(

@@ -9,6 +9,7 @@ import '../screens/teacher/teacher_shell.dart';
 import '../screens/teacher/teacher_home_screen.dart';
 import '../screens/teacher/teacher_students_screen.dart';
 import '../screens/teacher/teacher_attendance_screen.dart';
+import '../screens/teacher/teacher_holidays_screen.dart';
 import '../screens/teacher/teacher_scanner_screen.dart';
 import '../screens/teacher/teacher_marks_screen.dart';
 import '../screens/teacher/teacher_videos_screen.dart';
@@ -73,6 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher/home',          builder: (_, __) => const TeacherHomeScreen()),
           GoRoute(path: '/teacher/students',       builder: (_, __) => const TeacherStudentsScreen()),
           GoRoute(path: '/teacher/attendance',     builder: (_, __) => const TeacherAttendanceScreen()),
+          GoRoute(path: '/teacher/holidays',       builder: (_, __) => const TeacherHolidaysScreen()),
           GoRoute(path: '/teacher/marks',          builder: (_, __) => const TeacherMarksScreen()),
           GoRoute(path: '/teacher/videos',         builder: (_, __) => const TeacherVideosScreen()),
           GoRoute(path: '/teacher/notifications',  builder: (_, __) => const TeacherNotificationsScreen()),

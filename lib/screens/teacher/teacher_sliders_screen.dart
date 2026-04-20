@@ -109,7 +109,13 @@ class _State extends ConsumerState<TeacherSlidersScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Slider Management')),
+      appBar: AppBar(
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Slider Management'),
+      ),
       drawer: const TeacherDrawer(),
       body: _loading || _saving
           ? const Center(child: CircularProgressIndicator())

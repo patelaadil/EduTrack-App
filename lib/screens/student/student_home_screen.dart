@@ -79,13 +79,10 @@ class _State extends ConsumerState<StudentHomeScreen> {
         )),
         title: const Text('EduTrack'),
         actions: [
-          Stack(children: [
-            IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => context.go('/student/notifications')),
-            Positioned(top: 10, right: 10, child: Container(
-              width: 8, height: 8,
-              decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
-            )),
-          ]),
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => context.go('/student/notifications'),
+          ),
         ],
       ),
       body: _loading

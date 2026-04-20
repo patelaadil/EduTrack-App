@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
+import 'student_shell.dart';
 
 class StudentMarksScreen extends ConsumerStatefulWidget {
   const StudentMarksScreen({super.key});
@@ -63,6 +64,10 @@ class _State extends ConsumerState<StudentMarksScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
         title: const Text('Academics'),
         bottom: TabBar(
           controller: _tabCtrl,
@@ -76,6 +81,7 @@ class _State extends ConsumerState<StudentMarksScreen> with SingleTickerProvider
           ],
         ),
       ),
+      drawer: const StudentDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : TabBarView(

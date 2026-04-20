@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/read_only_holiday_view.dart';
-import 'student_shell.dart';
+import 'teacher_shell.dart';
 
-class StudentHolidaysScreen extends ConsumerStatefulWidget {
-  const StudentHolidaysScreen({super.key});
+class TeacherHolidaysScreen extends ConsumerStatefulWidget {
+  const TeacherHolidaysScreen({super.key});
 
   @override
-  ConsumerState<StudentHolidaysScreen> createState() => _State();
+  ConsumerState<TeacherHolidaysScreen> createState() => _State();
 }
 
-class _State extends ConsumerState<StudentHolidaysScreen> {
+class _State extends ConsumerState<TeacherHolidaysScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const StudentDrawer(),
+      drawer: const TeacherDrawer(),
       appBar: AppBar(
         leading: Builder(
           builder: (ctx) => IconButton(

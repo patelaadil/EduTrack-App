@@ -34,18 +34,18 @@ class _State extends ConsumerState<TeacherProfileScreen> {
       final ext = xfile.name.split('.').last;
       final fileName = '${user.id}_${const Uuid().v4()}.$ext';
 
-      // Upload to avatars bucket
       await supabase.storage.from('avatars').uploadBinary(fileName, bytes);
       final url = supabase.storage.from('avatars').getPublicUrl(fileName);
-
-      // Update profile
       await supabase.from('profiles').update({'photo_url': url}).eq('id', user.id);
-      
-      // Refresh provider
+
       ref.invalidate(userProfileProvider);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar updated!')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Avatar updated!')));
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update avatar: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to update avatar: $e')));
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -55,19 +55,31 @@ class _State extends ConsumerState<TeacherProfileScreen> {
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(userProfileProvider);
     final teacherAsync = ref.watch(teacherDataProvider);
-
     final isLoading = profileAsync.isLoading || teacherAsync.isLoading;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppBar(
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu_rounded),
+            onPressed: () => Scaffold.of(ctx).openDrawer(),
+          ),
+        ),
+        title: const Text('Profile'),
+      ),
       drawer: const TeacherDrawer(),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : profileAsync.when(
-              error: (e, _) => Center(child: Text('Error: $e')),
               loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
               data: (profile) {
                 final tcs = (teacherAsync.value?['teacher_classes'] as List?) ?? [];
+                final subjects = tcs
+                    .map((tc) => tc['subject'])
+                    .whereType<String>()
+                    .toSet()
+                    .join(', ');
                 final classNames = tcs
                     .map((tc) => tc['classes']?['name'] as String?)
                     .whereType<String>()
@@ -77,7 +89,6 @@ class _State extends ConsumerState<TeacherProfileScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // Profile card
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -85,93 +96,145 @@ class _State extends ConsumerState<TeacherProfileScreen> {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(color: AppColors.border),
                       ),
-                      child: Column(children: [
-                        GestureDetector(
-                          onTap: _uploading ? null : _uploadAvatar,
-                          child: Stack(
-                            alignment: Alignment.bottomRight,
-                            children: [
-                              AppAvatar(
-                                name: profile?.name ?? 'T',
-                                photoUrl: profile?.photoUrl,
-                                size: 84,
-                              ),
-                              if (_uploading)
-                                const Positioned.fill(child: CircularProgressIndicator(color: AppColors.primary)),
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
-                                child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
-                              )
-                            ]
-                          )
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          profile?.name ?? 'Teacher',
-                          style: GoogleFonts.publicSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          classNames.isNotEmpty ? 'Classes: $classNames' : 'No classes assigned',
-                          style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textGray),
-                          textAlign: TextAlign.center,
-                        ),
-                      ]),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: _uploading ? null : _uploadAvatar,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                AppAvatar(
+                                  name: profile?.name ?? 'Teacher',
+                                  photoUrl: profile?.photoUrl,
+                                  size: 84,
+                                ),
+                                if (_uploading)
+                                  const Positioned.fill(
+                                    child: CircularProgressIndicator(color: AppColors.primary),
+                                  ),
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 2),
+                                  ),
+                                  child: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            profile?.name ?? 'Teacher',
+                            style: GoogleFonts.publicSans(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textDark),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            classNames.isNotEmpty ? 'Classes: $classNames' : 'No classes assigned',
+                            style: GoogleFonts.publicSans(fontSize: 13, color: AppColors.textGray),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Info card
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.border),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: Column(children: [
-                        _InfoTile(icon: Icons.phone_outlined, iconColor: AppColors.success, label: 'CONTACT', value: profile?.phone ?? '—'),
-                        const Divider(height: 0, indent: 60),
-                        _InfoTile(icon: Icons.mail_outlined, iconColor: const Color(0xFF8B5CF6), label: 'EMAIL', value: profile?.email ?? '—'),
-                        const Divider(height: 0, indent: 60),
-                        _InfoTile(icon: Icons.badge_outlined, iconColor: AppColors.primary, label: 'SUBJECTS', value: tcs.map((tc) => tc['subject']).where((s) => s != null).toSet().join(', ').isNotEmpty ? tcs.map((tc) => tc['subject']).where((s) => s != null).toSet().join(', ') : '—'),
-                      ]),
+                      child: Column(
+                        children: [
+                          _InfoTile(icon: Icons.phone_outlined, iconColor: AppColors.success, label: 'CONTACT', value: profile?.phone ?? '--'),
+                          const Divider(height: 0, indent: 60),
+                          _InfoTile(icon: Icons.mail_outlined, iconColor: const Color(0xFF8B5CF6), label: 'EMAIL', value: profile?.email ?? '--'),
+                          const Divider(height: 0, indent: 60),
+                          _InfoTile(icon: Icons.badge_outlined, iconColor: AppColors.primary, label: 'SUBJECTS', value: subjects.isNotEmpty ? subjects : '--'),
+                        ],
+                      ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // Settings & Logout
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: AppColors.border),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
-                      child: Column(children: [
-                        ListTile(
-                          leading: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
-                          title: Text('Logout', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error)),
-                          onTap: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (ctx) => AlertDialog(
-                                title: const Text('Logout'),
-                                content: const Text('Are you sure you want to logout?'),
-                                actions: [
-                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Logout', style: TextStyle(color: AppColors.error))),
-                                ],
-                              ),
-                            );
-                            if (confirm == true) {
-                              await ref.read(authProvider).signOut();
-                              if (context.mounted) context.go('/login');
-                            }
-                          },
+                      child: Column(
+                        children: [
+                          _InfoTile(icon: Icons.verified_user_outlined, iconColor: AppColors.primary, label: 'ROLE', value: profile?.role.toUpperCase() ?? '--'),
+                          const Divider(height: 0, indent: 60),
+                          _InfoTile(icon: Icons.toggle_on_outlined, iconColor: AppColors.success, label: 'STATUS', value: profile?.isActive == true ? 'ACTIVE' : 'INACTIVE'),
+                          const Divider(height: 0, indent: 60),
+                          _InfoTile(icon: Icons.badge_outlined, iconColor: const Color(0xFF8B5CF6), label: 'PROFILE ID', value: profile?.id ?? '--'),
+                          const Divider(height: 0, indent: 60),
+                          _InfoTile(icon: Icons.groups_rounded, iconColor: AppColors.warning, label: 'STAFF ID', value: teacherAsync.value?['id']?.toString() ?? '--'),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ListTile(
+                        leading: const Icon(Icons.logout_rounded, color: AppColors.error, size: 20),
+                        title: Text(
+                          'Logout',
+                          style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.error),
                         ),
-                      ]),
+                        onTap: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Logout'),
+                              content: const Text('Are you sure you want to logout?'),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Logout', style: TextStyle(color: AppColors.error)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await ref.read(authProvider).signOut();
+                            if (context.mounted) context.go('/login');
+                          }
+                        },
+                      ),
                     ),
                   ],
                 );
@@ -184,26 +247,59 @@ class _State extends ConsumerState<TeacherProfileScreen> {
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final Color iconColor;
-  final String label, value;
-  const _InfoTile({required this.icon, required this.iconColor, required this.label, required this.value});
+  final String label;
+  final String value;
+
+  const _InfoTile({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+  });
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    child: Row(children: [
-      Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(color: iconColor.withOpacity(0.1), borderRadius: BorderRadius.circular(9)),
-        child: Icon(icon, color: iconColor, size: 18),
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.publicSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textGray,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: GoogleFonts.publicSans(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label, style: GoogleFonts.publicSans(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.textGray, letterSpacing: 0.8)),
-          const SizedBox(height: 2),
-          Text(value, style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textDark)),
-        ]),
-      ),
-    ]),
-  );
+    );
+  }
 }

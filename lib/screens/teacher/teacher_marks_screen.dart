@@ -116,7 +116,13 @@ class _State extends ConsumerState<TeacherMarksScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Marks')),
+      appBar: AppBar(
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Add Marks'),
+      ),
       drawer: const TeacherDrawer(),
       body: _loading 
         ? const Center(child: CircularProgressIndicator())

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:go_router/go_router.dart';
+import '../../providers/auth_provider.dart';
 import '../../supabase/supabase_config.dart';
 import '../../theme/app_theme.dart';
 import 'teacher_shell.dart';
@@ -26,13 +27,25 @@ class _State extends ConsumerState<TeacherAttendanceScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final teacherData = await ref.read(teacherDataProvider.future);
+    final tcs = (teacherData?['teacher_classes'] as List?) ?? [];
+    final classIds = tcs
+        .map((tc) => tc['classes']?['id'])
+        .whereType<String>()
+        .toList();
+
     final results = await Future.wait([
-      supabase
-          .from('attendance_sessions')
-          .select('id, session_date, subject, classes(id, name), attendance_records(status)')
-          .order('session_date', ascending: false)
-          .limit(100),
-      supabase.from('classes').select('id, name').order('name'),
+      classIds.isEmpty
+          ? Future.value(<Map<String, dynamic>>[])
+          : supabase
+              .from('attendance_sessions')
+              .select('id, session_date, subject, class_id, classes(id, name), attendance_records(status)')
+              .inFilter('class_id', classIds)
+              .order('session_date', ascending: false)
+              .limit(100),
+      classIds.isEmpty
+          ? Future.value(<Map<String, dynamic>>[])
+          : supabase.from('classes').select('id, name').inFilter('id', classIds).order('name'),
     ]);
     if (mounted) setState(() {
       _sessions = List<Map<String, dynamic>>.from(results[0] as List);

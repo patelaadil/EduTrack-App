@@ -45,7 +45,14 @@ class _State extends ConsumerState<TeacherVideosScreen> {
     }
 
     try {
-      final res = await supabase.from('videos').select('*, classes(name)').order('created_at', ascending: false);
+      final classIds = _myClasses.map((c) => c['class_id']).whereType<String>().toList();
+      final res = classIds.isEmpty
+          ? <Map<String, dynamic>>[]
+          : await supabase
+              .from('videos')
+              .select('*, classes(name)')
+              .inFilter('class_id', classIds)
+              .order('created_at', ascending: false);
       if (mounted) {
         setState(() {
           _videos = List<Map<String, dynamic>>.from(res);
@@ -154,7 +161,13 @@ class _State extends ConsumerState<TeacherVideosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Videos')),
+      appBar: AppBar(
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Manage Videos'),
+      ),
       drawer: const TeacherDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())

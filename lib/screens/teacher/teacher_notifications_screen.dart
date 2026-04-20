@@ -161,7 +161,13 @@ class _State extends ConsumerState<TeacherNotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Notifications Sent')),
+      appBar: AppBar(
+        leading: Builder(builder: (ctx) => IconButton(
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: () => Scaffold.of(ctx).openDrawer(),
+        )),
+        title: const Text('Notifications Sent'),
+      ),
       drawer: const TeacherDrawer(),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
